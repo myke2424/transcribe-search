@@ -1,12 +1,15 @@
 [tool.poetry]
-name = "video-transcription-search"
+name = "transcription-search"
 version = "0.1.0"
 description = ""
 authors = ["mike <myke2424@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "3.8"
+rich = "^12.3.0"
 google-cloud-speech = "^2.13.1"
+pymediainfo = "^5.1.0"
+moviepy = "^1.0.3"
 
 [tool.poetry.dev-dependencies]
 
