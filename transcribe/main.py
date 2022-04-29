@@ -29,16 +29,7 @@ class Player(Protocol):
 
 
 def main() -> None:
-    audio_data = AudioData.from_file("../test.mp4")
-    config = {
-        "encoding": speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        "sample_rate_hertz": audio_data.sampling_rate,
-        "language_code": "en-US",
-        "audio_channel_count": audio_data.channels,
-        "enable_word_time_offsets": True,
-    }
-
-    transcriber = GoogleVideoTranscriber(config)
+    transcriber = GoogleVideoTranscriber()
     transcriber.transcribe("test.mp4")
     print()
 
