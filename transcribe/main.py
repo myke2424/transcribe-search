@@ -1,22 +1,19 @@
+import logging
 import sys
-from transcriber import GoogleVideoTranscriber
+
 from commands import get_cmd_arguments
+from transcriber import GoogleVideoTranscriber
 
-
-
-# Thoughts - How to store and search for words?
-# Maybe use a trie, each node will be a word
-# Search for a word in the transcription; show all timestamps in the video that word was said
-
-
-import argparse
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def main() -> None:
     args = get_cmd_arguments()
 
     if args.word is None and args.phrase is None:
-        print("Search for word or phrase cmd line arg required")
+        logger.error("Search for word or phrase cmd line arg required (--word or --phrase)")
         return
 
     transcriber = GoogleVideoTranscriber()
