@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -6,23 +7,25 @@ from moviepy.editor import AudioFileClip
 from pymediainfo import MediaInfo
 from utils import open_then_remove
 
+logger = logging.getLogger(__name__)
+
 Milliseconds = int
 DEFAULT_AUDIO_EXTENSION = "wav"
 
 
 class VideoFile:
-    def __init__(self, file_path):
+    def __init__(self, file_path: Path) -> None:
         self.file_path = file_path
         self.audio_data = _AudioData.from_file(file_path)
 
     @property
-    def filename_no_ext(self):
+    def filename_no_ext(self) -> str:
         """Filename without its extension"""
-        return self.file_path.split(".")[0]
+        return self.file_path.name.split(".")[0]
 
     def get_audio_content(self, format_: str = DEFAULT_AUDIO_EXTENSION) -> bytes:
         """Generate audio file from video and extract the audio data bytes."""
-        audio_clip = AudioFileClip(self.file_path)
+        audio_clip = AudioFileClip(str(self.file_path))
         audio_file_name = f"{self.filename_no_ext}.{format_}"
         audio_clip.write_audiofile(audio_file_name, verbose=False, logger=None)
 
@@ -40,13 +43,15 @@ class _AudioData:
     sampling_rate: int
 
     @classmethod
-    def from_file(cls, filename: str) -> "_AudioData":
-        """Create class instance using mediainfo on the file"""
-        media_info = MediaInfo.parse(Path(filename))
+    def from_file(cls, file_path: Path) -> "_AudioData":
+        """Create class instance using mediainfo on the video file"""
+        media_info = MediaInfo.parse(file_path)
         audio_tracks = media_info.audio_tracks
 
         if not audio_tracks:
-            raise ZeroAudioTracksError(f"File: {filename} - has no audio tracks")
+            raise ZeroAudioTracksError(f"File: {file_path.name} - has no audio tracks")
 
         audio_track = audio_tracks[0]
+        logger.debug(f"Audio track: {audio_track}")
+
         return cls(audio_track.duration, audio_track.channel_s, audio_track.sampling_rate)
