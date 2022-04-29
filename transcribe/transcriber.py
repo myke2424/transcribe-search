@@ -1,4 +1,5 @@
-from typing import Protocol, Callable
+from typing import Protocol, Callable, Dict, List, Tuple
+from datetime import timedelta
 from dataclasses import dataclass
 from google.cloud import speech
 from moviepy.editor import AudioFileClip
@@ -6,43 +7,51 @@ from metadata import VideoFile
 from collections import defaultdict
 from google.cloud.speech_v1.types import RecognizeResponse
 
+from rich.console import Console
+from rich.table import Table
 
-class Transcriber(Protocol):
-    def transcribe(self, filename: str) -> None:
-        """Transcribe audio file to text"""
-
-
-# transcription is a dict, key = word; val = list of start and end time tuples
-
-class Searchable(Protocol):
-    def search_word(self, word: str):
-        """ Search for all occurrences of the word in the transcription """
-
-    def search_phrase(self, transcription, phrase: str):
-        """ Search for all occurrences of the phrase in the transcription """
+Timestamp = Tuple[timedelta, timedelta]
 
 
 class Transcription:
     def __init__(self):
-        self.word_times = defaultdict(list)
+        # Store list of timestamps word, i.e. transcription[word] = [(start_time, end_time), ...]
+        # use for word search
+        self._words: Dict[str, List[Timestamp]] = defaultdict(list)
 
-    def search_word(self, word):
-        if self.word_times[word] is None:
-            print(f"Word: {word} doesn't exist in transcription")
+    def add_word_and_timestamp(self, word: str, start_time: timedelta, end_time: timedelta) -> None:
+        self._words[word].append((start_time, end_time))
+
+    def search_word(self, word: str) -> None:
+        if self._words[word] is None:
             return
 
-        for idx, start_time, end_time_ in enumerate(self.word_times[word]):
-            print(f"{idx+1}.occurence")
+        table = Table(title="Search Result Table")
+        table.add_column("Occurrence", style="cyan")
+        table.add_column("Start Time", style="magenta")
+        table.add_column("EndTime", justify="right", style="green")
+
+        print(f"Search for word: ({word}) results - {len(self._words[word])} occurrences \n")
+        for i, timestamp in enumerate(self._words[word]):
+            start, end = timestamp
+            table.add_row(f"{i + 1}", f"{start.total_seconds()}", f"{end.total_seconds()}")
+
+        console = Console()
+        console.print(table)
+
+        def search_phrase(self, phrase):
+            pass
 
 
-    def search_phrase(self, phrase):
-        pass
+class Transcriber(Protocol):
+    def transcribe(self, filename: str) -> Transcription:
+        """Transcribe audio file to text"""
 
 
 class GoogleVideoTranscriber:
     SYNC_THRESHOLD = 60000
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._client = speech.SpeechClient()
         self.default_cfg_kwargs = {
             "encoding": speech.RecognitionConfig.AudioEncoding.LINEAR16,
@@ -50,16 +59,17 @@ class GoogleVideoTranscriber:
             "enable_word_time_offsets": True,
         }
 
-    def _parse_response(self, response: RecognizeResponse):
-        transcription = defaultdict(list)
+    @staticmethod
+    def _build_transcription_from_response(response: RecognizeResponse) -> Transcription:
+        """ Build the transcription dict structure """
+        transcription = Transcription()
         for result in response.results:
             for res in result.alternatives[0].words:
-                transcription[res.word].append((res.start_time, res.end_time))
-                print(
-                    f"Word: {res.word}, start_time: {res.start_time.total_seconds()}, end_time: {res.end_time.total_seconds()}")
+                transcription.add_word_and_timestamp(word=res.word, start_time=res.start_time,
+                                                     end_time=res.end_time)
+        return transcription
 
-
-    def transcribe(self, file_path: str):
+    def transcribe(self, file_path: str) -> Transcription:
         video = VideoFile(file_path)
         audio = speech.RecognitionAudio(content=video.get_audio_content())
         config = {**self.default_cfg_kwargs, "sample_rate_hertz": video.audio_data.sampling_rate,
@@ -71,4 +81,4 @@ class GoogleVideoTranscriber:
         )
 
         response = _recognize(config=config, audio=audio)
-        self._parse_response(response)
+        return self._build_transcription_from_response(response)
