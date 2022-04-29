@@ -12,7 +12,7 @@ DEFAULT_AUDIO_EXTENSION = "wav"
 
 @contextmanager
 def open_then_remove(path: str, mode: str) -> None:
-    """ Open the file and remove it once done """
+    """ Get the file contents then remove the file """
     file = open(path, mode)
 
     try:
@@ -29,16 +29,15 @@ class VideoFile:
 
     @property
     def filename_no_ext(self):
-        return self.filename.split(".")[0]
+        return self.file_path.split(".")[0]
 
-    # TODO: Move this somewhere else
-    def get_audio_content(self, format_: str = DEFAULT_AUDIO_EXTENSION) -> str:
-        """ Generate audio file from video, read file, return contents and delete audio file """
+    def get_audio_content(self, format_: str = DEFAULT_AUDIO_EXTENSION) -> bytes:
+        """ Generate audio file from video and extract the audio data bytes. """
         audio_clip = AudioFileClip(self.file_path)
         audio_file_name = f"{self.filename_no_ext}.{format_}"
         audio_clip.write_audiofile(audio_file_name)
 
-        # ctx manager will delete wav file after we read
+        # ctx manager will delete audio file after we read
         with open_then_remove(audio_file_name, "rb") as audio_file:
             content = audio_file.read()
 

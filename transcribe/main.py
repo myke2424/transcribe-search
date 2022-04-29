@@ -9,7 +9,7 @@ from pymediainfo import MediaInfo
 from rich.progress import track
 from metadata import AudioData
 from transcriber import GoogleVideoTranscriber
-
+from commands import get_cmd_arguments
 
 class Player(Protocol):
     def play(self) -> None:
@@ -26,11 +26,21 @@ class Player(Protocol):
 
 # Thoughts - How to store and search for words?
 # Maybe use a trie, each node will be a word
+# Search for a word in the transcription; show all timestamps in the video that word was said
+
+
+import argparse
 
 
 def main() -> None:
-    transcriber = GoogleVideoTranscriber()
-    transcriber.transcribe("test.mp4")
+    args = get_cmd_arguments()
+    # parser = argparse.ArgumentParser(description="Search transcription")
+    # parser.add_argument('-f', '--file', help='Video file path used for transcription', required=True)
+    # args = parser.parse_args()
+    # parser.add_argument('--word', help='Search for word in transcription and display results')
+    # parser.add_argument('--phrase', help='Search for phrase in transcription and display results')
+    #transcriber = GoogleVideoTranscriber()
+    #transcriber.transcribe("test.mp4")
     print()
 
 
