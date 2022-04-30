@@ -1,8 +1,9 @@
+import datetime
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from errors import ZeroAudioTracksError
+from errors import FileNotAVideoError, ZeroAudioTracksError
 from moviepy.editor import AudioFileClip
 from pymediainfo import MediaInfo
 from utils import open_then_remove
@@ -33,25 +34,35 @@ class VideoFile:
         with open_then_remove(audio_file_name, "rb") as audio_file:
             content = audio_file.read()
 
-        return content
+        return content, audio_file_name
 
 
 @dataclass(frozen=True)
 class _AudioData:
-    duration: Milliseconds
+    duration_ms: Milliseconds
     channels: int
     sampling_rate: int
+
+    @property
+    def timestamp(self) -> datetime.timedelta:
+        return datetime.timedelta(seconds=(self.duration_ms / 1000) % 60)  # convert ms to seconds
+
+    @property
+    def duration_minutes(self) -> int:
+        return (self.duration_ms / (1000 * 60)) % 60
 
     @classmethod
     def from_file(cls, file_path: Path) -> "_AudioData":
         """Create class instance using mediainfo on the video file"""
         media_info = MediaInfo.parse(file_path)
-        audio_tracks = media_info.audio_tracks
 
-        if not audio_tracks:
+        if not media_info.video_tracks:
+            raise FileNotAVideoError(f"File: {file_path.name} isn't a valid video file. Zero video tracks found.")
+
+        if not media_info.audio_tracks:
             raise ZeroAudioTracksError(f"File: {file_path.name} - has no audio tracks")
 
-        audio_track = audio_tracks[0]
+        audio_track = media_info.audio_tracks[0]
         logger.debug(f"Audio track: {audio_track}")
 
         return cls(audio_track.duration, audio_track.channel_s, audio_track.sampling_rate)

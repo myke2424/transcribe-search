@@ -1,12 +1,15 @@
 import logging
+import math
 from collections import defaultdict
 from datetime import timedelta
 from pathlib import Path
-from typing import Callable, Dict, List, Protocol, Tuple
+from typing import Dict, List, Protocol, Tuple
 
+import speech_recognition as sr
+import utils
 from google.cloud import speech
 from google.cloud.speech_v1.types import RecognizeResponse
-from utils import build_result_table, print_table
+from rich.progress import track
 from video import VideoFile
 
 logger = logging.getLogger(__name__)
@@ -28,12 +31,12 @@ class Transcription:
             return
 
         logger.info(f"Found {len(self._words[word])} results for ({word}) search")
-        table = build_result_table(word)
+        table = utils.build_result_table(word)
 
         for i, timestamp in enumerate(self._words[word]):
             start, end = timestamp
-            table.add_row(f"{i + 1}", f"{start.total_seconds()}", f"{end.total_seconds()}")
-        print_table(table)
+            table.add_row(f"{i + 1}", f"{start}", f"{end}")
+        utils.print_table(table)
 
         def search_phrase(self, phrase: str) -> None:
             """Search the transcription for the phrase and display the results"""
@@ -70,21 +73,22 @@ class GoogleVideoTranscriber:
     def transcribe(self, file_path: Path) -> Transcription:
         logger.debug(f"Transcribing file: '{file_path}'")
         video = VideoFile(file_path)
-        audio = speech.RecognitionAudio(content=video.get_audio_content())
+        audio_content, audio_file_name = video.get_audio_content()
+        audio = speech.RecognitionAudio(content=audio_content)
         config = {
             **self.default_cfg_kwargs,
             "sample_rate_hertz": video.audio_data.sampling_rate,
             "audio_channel_count": video.audio_data.channels,
         }
 
-        # If the file is greater than 60 seconds, use asynchronous speech recognition, otherwise use sync
-        _recognize: Callable = (
-            self._client.long_running_recognize
-            if video.audio_data.duration > self.SYNC_THRESHOLD
-            else self._client.recognize
-        )
+        OFFSET = DURATION = 60
 
-        response = _recognize(config=config, audio=audio)
-        logger.debug(f"google transcription response: {response}")
+        for i in track(range(int(math.ceil(video.audio_data.duration_minutes))), description="Transcribing..."):
+            with sr.AudioFile(audio_file_name) as source:
+                chunk = sr.Recognizer().record(source, offset=i * OFFSET, duration=DURATION)  # 60 second chunks
+                audio = speech.RecognitionAudio(content=chunk.frame_data)
 
-        return self._build_transcription_from_response(response)
+                operation = self._client.long_running_recognize(config=config, audio=audio)
+
+                logger.debug(f"Waiting for chunk {i} to complete...")
+                response = operation.result(timeout=90)

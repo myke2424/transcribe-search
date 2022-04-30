@@ -14,7 +14,7 @@ def open_then_remove(path: str, mode: str) -> None:
         yield file
     finally:
         file.close()
-        os.remove(path)
+    #   os.remove(path)
 
 
 def build_result_table(
@@ -23,8 +23,8 @@ def build_result_table(
     """Build table for CLI output"""
     table = Table(title=f"Search Results For Word: ({word})")
     table.add_column("Occurrence", style="cyan")
-    table.add_column("Start Time", style="magenta")
-    table.add_column("EndTime", justify="right", style="green")
+    table.add_column("Start Time", style="green")
+    table.add_column("End Time", justify="right", style="green")
     return table
 
 
