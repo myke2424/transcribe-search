@@ -1,11 +1,13 @@
 import datetime
 import logging
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
 from moviepy.editor import AudioFileClip
 from pymediainfo import MediaInfo
 
+from .config import Config
 from .errors import FileNotAVideoError, ZeroAudioTracksError
 
 logger = logging.getLogger(__name__)
@@ -24,17 +26,21 @@ class VideoFile:
         """Filename without its extension"""
         return self.file_path.name.split(".")[0]
 
-    def get_audio_content(self, format_: str = DEFAULT_AUDIO_EXTENSION) -> bytes:
+    def generate_audio_content(self, format_: str = DEFAULT_AUDIO_EXTENSION) -> bytes:
         """Generate audio file from video and extract the audio data bytes."""
         audio_clip = AudioFileClip(str(self.file_path))
         audio_file_name = f"{self.filename_no_ext}.{format_}"
+
+        logger.debug(f"Generating audio file {audio_file_name}")
         audio_clip.write_audiofile(audio_file_name, verbose=False, logger=None)
 
-        # ctx manager will delete audio file after we read
-        with open(audio_file_name, "rb") as audio_file:
+        audio_file_path = f"{Config.GENERATED_FILES_DIR}/{audio_file_name}"
+        shutil.move(audio_file_name, audio_file_path)  # move to generated dir
+
+        with open(audio_file_path, "rb") as audio_file:
             content = audio_file.read()
 
-        return content, audio_file_name
+        return content, audio_file_path
 
 
 @dataclass(frozen=True)

@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 import logging
@@ -25,10 +26,9 @@ class Transcription:
         # Store list of timestamps word, i.e. transcription[word] = [(start_time, end_time), ...]
         # use for word search
         self._words: Dict[str, List[Timestamp]] = words or defaultdict(list)
-        utils.make_dir(Config.GENERATED_FILES_DIR)
 
     @classmethod
-    def from_json(cls, json_file_path: str) -> "Transcription":
+    def from_json_file(cls, json_file_path: str) -> "Transcription":
         """Create transcription object from json file, used when results are cached"""
         path = Path(json_file_path)
 
@@ -42,15 +42,28 @@ class Transcription:
         with open(str(path)) as file:
             words_json = json.load(file)
 
-        for word, timestamps in words_json.items():
+        words = cls._build_words_from_json(words_json)
+
+        return cls(words=words)
+
+    @classmethod
+    def from_json(cls, transcription_json: dict) -> "Transcription":
+        """Create transcription from json"""
+        words = cls._build_words_from_json(transcription_json)
+        return cls(words)
+
+    @staticmethod
+    def _build_words_from_json(words_json: dict) -> dict:
+        """Build word dict structure from json (need to parse deltatime objs)"""
+        words = copy.deepcopy(words_json)
+        for word, timestamps in words.items():
             for i in range(len(timestamps)):
                 start, end = timestamps[i]
                 timestamps[i] = (
                     utils.create_timedelta_from_timestamp(start),
                     utils.create_timedelta_from_timestamp(end),
                 )
-
-        return cls(words=words_json)
+        return words
 
     def add_word_and_timestamp(self, word: str, start_time: timedelta, end_time: timedelta) -> None:
         """Append word with timestamp to dict"""
@@ -113,26 +126,29 @@ class GoogleVideoTranscriber:
                 transcription.add_word_and_timestamp(word=res.word, start_time=start, end_time=end)
 
     def transcribe(self, file_path: Path) -> Transcription:
+        """Transcribe video to text in chunks"""
         logger.debug(f"Transcribing file: '{file_path}'")
         video = VideoFile(file_path)
-        audio_content, audio_file_name = video.get_audio_content()
+        audio_content, audio_file_path = video.generate_audio_content()
         config = {
             **self.default_cfg_kwargs,
             "sample_rate_hertz": video.audio_data.sampling_rate,
             "audio_channel_count": video.audio_data.channels,
         }
 
+        total_duration = int(math.ceil(video.audio_data.duration_minutes))
         transcription = Transcription()
-        for i in track(range(int(math.ceil(video.audio_data.duration_minutes))), description="Transcribing..."):
-            with sr.AudioFile(audio_file_name) as source:
-                # create 60-second chunks, so we don't go over the speech to text MB request limit
-                chunk = sr.Recognizer().record(source, offset=i * Config.OFFSET, duration=Config.FILE_CHUNK_DURATION)
-                audio = speech.RecognitionAudio(content=chunk.frame_data)
+        recorder = sr.Recognizer()
 
+        for i in track(range(total_duration), description="Transcribing..."):
+            with sr.AudioFile(audio_file_path) as source:
+                # create 60-second chunks, so we don't go over the speech to text MB request limit
+                chunk = recorder.record(source, offset=i * Config.OFFSET, duration=Config.FILE_CHUNK_DURATION)
+                audio = speech.RecognitionAudio(content=chunk.frame_data)
                 operation = self._client.long_running_recognize(config=config, audio=audio)
 
                 logger.debug(f"Waiting for chunk {i} to complete...")
-                response = operation.result(timeout=90)
+                response = operation.result()
                 self._build_transcription_from_response(response, transcription, i, Config.OFFSET)
         transcription.to_json_file(filename=video.filename_no_ext)
         return transcription

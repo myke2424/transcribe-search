@@ -33,6 +33,7 @@ def build_result_table(
 def print_table(table: Table) -> None:
     """Print the table to the terminal"""
     console = Console()
+    print("\n")
     console.print(table)
 
 

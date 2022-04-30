@@ -2,6 +2,7 @@ import logging
 import sys
 from pathlib import Path
 
+from . import utils
 from .commands import get_cmd_arguments
 from .config import Config
 from .transcriber import GoogleVideoTranscriber, Transcription
@@ -14,6 +15,7 @@ logger.setLevel(Config.LOG_LEVEL)
 def main() -> None:
     args = get_cmd_arguments()
     file = Path(args.file)
+    utils.make_dir(Config.GENERATED_FILES_DIR)
     transcription = None
 
     if not file.is_file():

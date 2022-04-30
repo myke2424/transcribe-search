@@ -6,7 +6,7 @@ Transcribe video to text and get timestamps for keywords and phrase search resul
 
 I created this because some professors upload their lecture recordings to google drive with no transcription. This way,
 I can use this to search the recording for keywords and get the corresponding timestamps, so I don't have to find the
-points in the recording manually
+points in the recording manually.
 
 ## Tech-stack:
 
@@ -55,4 +55,7 @@ Cache (Use generated transcription if it exists)
 ```bash
 python3 -m transcribe --file=/mnt/c/users/mike/videos/lecture1.mp4 --phrase='midterm date' -c=True
 ```
+
+## Example Output
+![Search output](images/search_results.PNG)
 
