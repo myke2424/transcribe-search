@@ -25,13 +25,20 @@ class WordSearchCommand:
 
 
 class PhraseSearchCommand:
-    """Search for phrase in transcription and display results'"""
+    """Search for phrase in transcription and display results"""
 
     def prepare_parser(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("-p", "--phrase", help=self.__doc__)
 
 
-COMMANDS: List[Command] = [FileCommand(), WordSearchCommand(), PhraseSearchCommand()]
+class CacheCommand:
+    """Cache results of generated transcription"""
+
+    def prepare_parser(self, parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("-c", "--cache", help=self.__doc__, default=True, type=bool, choices=(True, False))
+
+
+COMMANDS: List[Command] = [FileCommand(), WordSearchCommand(), PhraseSearchCommand(), CacheCommand()]
 
 
 def get_cmd_arguments() -> argparse.ArgumentParser:

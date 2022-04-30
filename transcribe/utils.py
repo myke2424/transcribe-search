@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from contextlib import contextmanager
 
 from rich.console import Console
@@ -14,11 +15,11 @@ def open_then_remove(path: str, mode: str) -> None:
         yield file
     finally:
         file.close()
-    #   os.remove(path)
+        os.remove(path)
 
 
 def build_result_table(
-    word: str,
+        word: str,
 ) -> Table:
     """Build table for CLI output"""
     table = Table(title=f"Search Results For Word: ({word})")
@@ -32,3 +33,8 @@ def print_table(table: Table) -> None:
     """Print the table to the terminal"""
     console = Console()
     console.print(table)
+
+
+def make_dir(dirname: str) -> None:
+    if not Path(dirname).is_dir():
+        os.mkdir(dirname)

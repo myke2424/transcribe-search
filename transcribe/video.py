@@ -31,7 +31,7 @@ class VideoFile:
         audio_clip.write_audiofile(audio_file_name, verbose=False, logger=None)
 
         # ctx manager will delete audio file after we read
-        with open_then_remove(audio_file_name, "rb") as audio_file:
+        with open(audio_file_name, "rb") as audio_file:
             content = audio_file.read()
 
         return content, audio_file_name
