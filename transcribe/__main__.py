@@ -2,18 +2,19 @@ import logging
 import sys
 from pathlib import Path
 
-from commands import get_cmd_arguments
-from transcriber import GoogleVideoTranscriber
+from .commands import get_cmd_arguments
+from .config import Config
+from .transcriber import GoogleVideoTranscriber, Transcription
 
-LOG_LEVEL = logging.INFO
-logging.basicConfig(level=LOG_LEVEL)
+logging.basicConfig(level=Config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(Config.LOG_LEVEL)
 
 
 def main() -> None:
     args = get_cmd_arguments()
     file = Path(args.file)
+    transcription = None
 
     if not file.is_file():
         logger.error(f"Invalid file path: {file.absolute()}")
@@ -23,8 +24,14 @@ def main() -> None:
         logger.error("Search for word or phrase cmd line arg required (--word or --phrase)")
         return
 
-    transcriber = GoogleVideoTranscriber()
-    transcription = transcriber.transcribe(file)
+    if args.cache:
+        transcription_json_path = Path(f"{Config.GENERATED_FILES_DIR}/{file.stem}.json")
+        if transcription_json_path:  # generated file exists
+            transcription = Transcription.from_json(json_file_path=transcription_json_path)
+
+    if transcription is None:
+        transcriber = GoogleVideoTranscriber()
+        transcription = transcriber.transcribe(file)
 
     if args.word is not None:
         transcription.search_word(args.word)

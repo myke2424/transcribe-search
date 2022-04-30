@@ -1,6 +1,7 @@
+import datetime
 import os
-from pathlib import Path
 from contextlib import contextmanager
+from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
@@ -19,7 +20,7 @@ def open_then_remove(path: str, mode: str) -> None:
 
 
 def build_result_table(
-        word: str,
+    word: str,
 ) -> Table:
     """Build table for CLI output"""
     table = Table(title=f"Search Results For Word: ({word})")
@@ -36,5 +37,13 @@ def print_table(table: Table) -> None:
 
 
 def make_dir(dirname: str) -> None:
+    """Create directory if it doesn't exist"""
     if not Path(dirname).is_dir():
         os.mkdir(dirname)
+
+
+def create_timedelta_from_timestamp(timestamp: str) -> datetime.timedelta:
+    """Create timedelta object from "0:00:00" timestamp format"""
+    time = datetime.datetime.strptime(timestamp, "%H:%M:%S")
+    delta = datetime.timedelta(hours=time.hour, minutes=time.minute, seconds=time.second)
+    return delta

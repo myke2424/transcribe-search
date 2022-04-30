@@ -35,7 +35,7 @@ class CacheCommand:
     """Cache results of generated transcription"""
 
     def prepare_parser(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("-c", "--cache", help=self.__doc__, default=True, type=bool, choices=(True, False))
+        parser.add_argument("-c", "--cache", help=self.__doc__, default=False, type=bool, choices=(True, False))
 
 
 COMMANDS: List[Command] = [FileCommand(), WordSearchCommand(), PhraseSearchCommand(), CacheCommand()]

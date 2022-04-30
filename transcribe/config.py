@@ -3,4 +3,3 @@ class Config:
     GENERATED_FILES_DIR = "generated"
     FILE_CHUNK_DURATION = 60
     OFFSET = 60
-

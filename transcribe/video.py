@@ -3,10 +3,10 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from errors import FileNotAVideoError, ZeroAudioTracksError
 from moviepy.editor import AudioFileClip
 from pymediainfo import MediaInfo
-from utils import open_then_remove
+
+from .errors import FileNotAVideoError, ZeroAudioTracksError
 
 logger = logging.getLogger(__name__)
 
