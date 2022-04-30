@@ -1,7 +1,6 @@
-from datetime import timedelta
-
 import pytest
 
+from datetime import timedelta
 from transcribe import transcriber
 
 
@@ -37,7 +36,3 @@ def transcription_expected():
 def test_deserialization(transcription_json, transcription_expected):
     transcription_got = transcriber.Transcription.from_json(transcription_json)
     assert transcription_got._words == transcription_expected._words
-
-
-def test_search(transcription_expected):
-    transcription_expected.search_word("midterm")
