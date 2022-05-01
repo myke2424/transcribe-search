@@ -1,5 +1,7 @@
+import concurrent.futures
 import copy
 import datetime
+import functools
 import json
 import logging
 import math
@@ -94,6 +96,7 @@ class Transcription:
 
     def search_phrase(self, phrase: str) -> None:
         """Search the transcription for the phrase and display the results"""
+        # Implement trie data structure for phrase search
         raise NotImplementedError
 
 
@@ -104,6 +107,8 @@ class Transcriber(Protocol):
 
 class GoogleVideoTranscriber:
     SYNC_THRESHOLD = 60000
+    AUDIO_CHUNK_TIME_LIMIT = 60
+    OFFSET = 60
 
     def __init__(self) -> None:
         self._client = speech.SpeechClient()
@@ -113,42 +118,58 @@ class GoogleVideoTranscriber:
             "enable_word_time_offsets": True,
         }
 
-    @staticmethod
-    def _build_transcription_from_response(
-        response: RecognizeResponse, transcription: Transcription, chunk_id: int, offset: int
-    ) -> None:
-        """Build the transcription dict structure"""
+    def _create_file_chunks(self, audio_file: sr.AudioFile, total_duration: int) -> List[sr.AudioData]:
+        """Create a list of file chunks, where each chunk is chunk_time_limit in length, default 60seconds"""
+        recorder = sr.Recognizer()
+        chunks = []
+        for i in range(total_duration):
+            with sr.AudioFile(audio_file) as source:
+                # offset is the time the audio chunk starts
+                chunk = recorder.record(
+                    source, offset=i * self.AUDIO_CHUNK_TIME_LIMIT, duration=self.AUDIO_CHUNK_TIME_LIMIT
+                )
+                chunks.append(chunk)
+        return chunks
+
+    def _build_transcription_obj_from_response(self, response: RecognizeResponse, transcription: Transcription,
+                                               chunk_id: int) -> None:
+        """Build the transcription data structure"""
         for result in response.results:
             for res in result.alternatives[0].words:
-                # chunk_id * offset equal current time in video
-                start = res.start_time + datetime.timedelta(seconds=(chunk_id * offset))
-                end = res.end_time + datetime.timedelta(seconds=(chunk_id * offset))
+                # chunk_id * audio chunk time limit = current time in video
+                start = res.start_time + datetime.timedelta(seconds=(chunk_id * self.AUDIO_CHUNK_TIME_LIMIT))
+                end = res.end_time + datetime.timedelta(seconds=(chunk_id * self.AUDIO_CHUNK_TIME_LIMIT))
                 transcription.add_word_and_timestamp(word=res.word, start_time=start, end_time=end)
 
+    def _make_transcription(self, audio_chunk: sr.AudioData, chunk_id: int, transcription: Transcription,
+                            config: dict) -> None:
+        """Make the request to transcribe the audio to text and build the transcription data structure"""
+        audio = speech.RecognitionAudio(content=audio_chunk.frame_data)
+        logger.debug(f"Making request for audio file chunk {chunk_id}")
+        response = self._client.recognize(config=config, audio=audio)
+        self._build_transcription_obj_from_response(response, transcription, chunk_id)
+
     def transcribe(self, file_path: Path) -> Transcription:
-        """Transcribe video to text in chunks"""
+        """Transcribe video to text"""
         logger.debug(f"Transcribing file: '{file_path}'")
         video = VideoFile(file_path)
         audio_content, audio_file_path = video.generate_audio_content()
         config = {
             **self.default_cfg_kwargs,
             "sample_rate_hertz": video.audio_data.sampling_rate,
-            "audio_channel_count": video.audio_data.channels,
         }
 
         total_duration = int(math.ceil(video.audio_data.duration_minutes))
+
+        audio_chunks = self._create_file_chunks(audio_file=audio_file_path, total_duration=total_duration)
+        chunk_ids = list(range(len(audio_chunks)))
         transcription = Transcription()
-        recorder = sr.Recognizer()
 
-        for i in track(range(total_duration), description="Transcribing..."):
-            with sr.AudioFile(audio_file_path) as source:
-                # create 60-second chunks, so we don't go over the speech to text MB request limit
-                chunk = recorder.record(source, offset=i * Config.OFFSET, duration=Config.FILE_CHUNK_DURATION)
-                audio = speech.RecognitionAudio(content=chunk.frame_data)
-                operation = self._client.long_running_recognize(config=config, audio=audio)
+        make_transcription_fn = functools.partial(self._make_transcription, transcription=transcription, config=config)
 
-                logger.debug(f"Waiting for chunk {i} to complete...")
-                response = operation.result()
-                self._build_transcription_from_response(response, transcription, i, Config.OFFSET)
+        # Make transcription requests in parallel using thread pool
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            executor.map(make_transcription_fn, audio_chunks, chunk_ids)
+
         transcription.to_json_file(filename=video.filename_no_ext)
         return transcription

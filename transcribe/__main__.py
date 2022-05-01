@@ -28,7 +28,8 @@ def main() -> None:
 
     if args.cache:
         transcription_json_path = Path(f"{Config.GENERATED_FILES_DIR}/{file.stem}.json")
-        if transcription_json_path:  # generated file exists
+        if transcription_json_path:
+            logger.debug(f"Generated transcription already exists, using: {transcription_json_path} for search")
             transcription = Transcription.from_json(json_file_path=transcription_json_path)
 
     if transcription is None:
