@@ -48,3 +48,9 @@ def create_timedelta_from_timestamp(timestamp: str) -> datetime.timedelta:
     time = datetime.datetime.strptime(timestamp, "%H:%M:%S")
     delta = datetime.timedelta(hours=time.hour, minutes=time.minute, seconds=time.second)
     return delta
+
+
+def trunc_microseconds(time: datetime.timedelta) -> datetime.timedelta:
+    """Truncate microseconds from timedelta obj"""
+    truncated = time - datetime.timedelta(microseconds=time.microseconds)
+    return truncated

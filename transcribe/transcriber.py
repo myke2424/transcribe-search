@@ -131,18 +131,24 @@ class GoogleVideoTranscriber:
                 chunks.append(chunk)
         return chunks
 
-    def _build_transcription_obj_from_response(self, response: RecognizeResponse, transcription: Transcription,
-                                               chunk_id: int) -> None:
+    def _build_transcription_obj_from_response(
+        self, response: RecognizeResponse, transcription: Transcription, chunk_id: int
+    ) -> None:
         """Build the transcription data structure"""
         for result in response.results:
             for res in result.alternatives[0].words:
                 # chunk_id * audio chunk time limit = current time in video
-                start = res.start_time + datetime.timedelta(seconds=(chunk_id * self.AUDIO_CHUNK_TIME_LIMIT))
-                end = res.end_time + datetime.timedelta(seconds=(chunk_id * self.AUDIO_CHUNK_TIME_LIMIT))
+                start = utils.trunc_microseconds(
+                    res.start_time + datetime.timedelta(seconds=(chunk_id * self.AUDIO_CHUNK_TIME_LIMIT))
+                )
+                end = utils.trunc_microseconds(
+                    res.end_time + datetime.timedelta(seconds=(chunk_id * self.AUDIO_CHUNK_TIME_LIMIT))
+                )
                 transcription.add_word_and_timestamp(word=res.word, start_time=start, end_time=end)
 
-    def _make_transcription(self, audio_chunk: sr.AudioData, chunk_id: int, transcription: Transcription,
-                            config: dict) -> None:
+    def _make_transcription(
+        self, audio_chunk: sr.AudioData, chunk_id: int, transcription: Transcription, config: dict
+    ) -> None:
         """Make the request to transcribe the audio to text and build the transcription data structure"""
         audio = speech.RecognitionAudio(content=audio_chunk.frame_data)
         logger.debug(f"Making request for audio file chunk {chunk_id}")
