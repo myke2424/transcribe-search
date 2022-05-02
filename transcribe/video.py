@@ -66,7 +66,7 @@ class VideoFile:
         """Generate audio file from video and extract the audio data bytes."""
         audio_file_path = self._generate_and_save_audio_file(save_dir)
 
-        with open(audio_file_path, "rb") as audio_file:
+        with audio_file_path.open(mode='rb') as audio_file:
             content = audio_file.read()
 
         return content, audio_file_path

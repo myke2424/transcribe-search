@@ -1,4 +1,7 @@
 import pytest
+import uuid
+import os
+import json
 
 from datetime import timedelta
 from transcribe import transcriber
@@ -34,5 +37,9 @@ def transcription_expected():
 
 
 def test_deserialization(transcription_json, transcription_expected):
-    transcription_got = transcriber.Transcription.from_json(transcription_json)
-    assert transcription_got._words == transcription_expected._words
+    test_json_file = f"test-{str(uuid.uuid4())}.json"
+    with open(test_json_file, 'w') as f:
+        json.dump(transcription_json, f)
+
+    transcriber.Transcription.from_json_file(test_json_file) == transcription_expected
+    os.remove(test_json_file)
